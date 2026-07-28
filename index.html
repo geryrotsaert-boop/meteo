@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#071525">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <title>Météo locale précise</title>
 <style>
 :root{color-scheme:dark;--bg:#071525;--card:rgba(12,29,48,.82);--line:rgba(255,255,255,.12);--text:#f7fbff;--muted:#a9bfd2;--blue:#49c8ff;--red:#ff8c9a;--shadow:0 20px 70px rgba(0,0,0,.35)}
@@ -567,6 +569,14 @@ ui.gps.addEventListener("click",()=>{
     maximumAge:60000
   });
 })();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.warn('SW registration failed:', err);
+    });
+  });
+}
 </script>
 </body>
 </html>
