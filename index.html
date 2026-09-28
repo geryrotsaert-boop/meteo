@@ -113,7 +113,7 @@ button,input{min-height:44px}
   </form>
 </header>
 
-<div id="status" class="status">Recherche ta commune ou autorise la géolocalisation.</div>
+<div id="status" class="status">Recherchez votre commune ou autorisez la géolocalisation.</div>
 
 <section id="content" class="hidden">
   <div class="grid">
@@ -223,6 +223,7 @@ button,input{min-height:44px}
 <div aria-hidden="true" style="height:32px"></div>
 </main>
 
+<script src="./i18n.js"></script>
 <script>
 "use strict";
 
@@ -235,6 +236,8 @@ const ui = {
  visibility:$("#visibility"), hourly:$("#hourly"), daily:$("#daily"), updated:$("#updated"),
  notice:$("#notice"), modelCount:$("#modelCount"), scoreRing:$("#scoreRing"), confidenceScore:$("#confidenceScore"), confidenceLabel:$("#confidenceLabel"), confidenceText:$("#confidenceText"), confidenceBar:$("#confidenceBar"), consensusRain:$("#consensusRain"), consensusTemp:$("#consensusTemp"), tempSpread:$("#tempSpread"), rainAgreement:$("#rainAgreement"), modelRows:$("#modelRows"), barometerNeedle:$("#barometerNeedle"), barometerValue:$("#barometerValue"), barometerTrend:$("#barometerTrend"), pressureTrendText:$("#pressureTrendText"), dialHumidity:$("#dialHumidity"), dialWind:$("#dialWind"), dialGusts:$("#dialGusts"), dialRain:$("#dialRain"), dialFeels:$("#dialFeels"), dialVisibility:$("#dialVisibility")
 };
+
+traduirePage();
 
 const WEATHER = {
  0:["Ciel dégagé","☀️"],1:["Principalement dégagé","🌤️"],2:["Partiellement nuageux","⛅"],
@@ -251,18 +254,18 @@ const WEATHER = {
 
 function weatherInfo(code,isDay=1){
   const item=WEATHER[code]||["Conditions variables","🌤️"];
-  if(!isDay && [0,1].includes(code)) return [item[0],"🌙"];
-  return item;
+  if(!isDay && [0,1].includes(code)) return [T(item[0]),"🌙"];
+  return [T(item[0]),item[1]];
 }
 function n(v,d=0){return Number.isFinite(Number(v))?Number(v).toFixed(d):"—"}
-function setStatus(text,error=false){ui.status.textContent=text;ui.status.className="status"+(error?" error":"")}
-function busy(on){ui.submit.disabled=on;ui.gps.disabled=on;ui.submit.textContent=on?"Chargement…":"Rechercher"}
+function setStatus(text,error=false){ui.status.textContent=T(text);ui.status.className="status"+(error?" error":"")}
+function busy(on){ui.submit.disabled=on;ui.gps.disabled=on;ui.submit.textContent=on?T("Chargement…"):T("Rechercher")}
 function compass(deg){
- const dirs=["N","NE","E","SE","S","SO","O","NO"];
+ const dirs=POINTS[LANG]||POINTS.fr;
  return dirs[Math.round(((deg||0)%360)/45)%8];
 }
 function formatDate(iso,opts){
- return new Intl.DateTimeFormat("fr-FR",opts).format(new Date(iso));
+ return new Intl.DateTimeFormat(LOCALE,opts).format(new Date(iso));
 }
 async function getJSON(url,timeout=15000){
  const controller=new AbortController();
@@ -275,7 +278,7 @@ async function getJSON(url,timeout=15000){
 }
 
 async function geocode(text){
- const url="https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(text)+"&count=1&language=fr&format=json";
+ const url="https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(text)+"&count=1&language="+LANGUE_API+"&format=json";
  const data=await getJSON(url);
  if(!data.results?.length) throw new Error("Aucune commune trouvée.");
  const p=data.results[0];
@@ -287,7 +290,7 @@ async function geocode(text){
 
 async function reverseLabel(lat,lon){
  try{
-   const url="https://geocoding-api.open-meteo.com/v1/reverse?latitude="+lat+"&longitude="+lon+"&count=1&language=fr&format=json";
+   const url="https://geocoding-api.open-meteo.com/v1/reverse?latitude="+lat+"&longitude="+lon+"&count=1&language="+LANGUE_API+"&format=json";
    const d=await getJSON(url,7000);
    const p=d.results?.[0];
    return p?[p.name,p.admin1,p.country].filter(Boolean).join(", "):"Ma position";
@@ -356,7 +359,7 @@ function render(data,label){
  ui.rainnow.textContent=n(c.precipitation,1)+" mm";
  ui.pressure.textContent=n(c.surface_pressure)+" hPa";
  const vis=currentVisibility(data); ui.visibility.textContent=vis==null?"—":n(vis/1000,1)+" km";
- ui.updated.textContent="Source : "+data._source+" · actualisé à "+formatDate(c.time,{hour:"2-digit",minute:"2-digit"});
+ ui.updated.textContent=Tf("Source : {0} · actualisé à {1}",T(data._source),formatDate(c.time,{hour:"2-digit",minute:"2-digit"}));
  renderHourly(data); renderDaily(data); renderNotice(data); renderConsensus(data); renderBarometer(data);
  ui.content.classList.remove("hidden");
 }
@@ -402,10 +405,10 @@ function renderBarometer(data){
    if(delta>=1.5) trend="En hausse";
    else if(delta<=-1.5) trend="En baisse";
  }
- ui.barometerTrend.textContent=trend;
+ ui.barometerTrend.textContent=T(trend);
  ui.pressureTrendText.textContent=Number.isFinite(previous)
-   ? `${trend} (${delta>=0?"+":""}${n(delta,1)} hPa environ)`
-   : trend;
+   ? Tf("{0} ({1} hPa environ)",T(trend),(delta>=0?"+":"")+n(delta,1))
+   : T(trend);
 
  ui.dialHumidity.textContent=n(c.relative_humidity_2m)+" %";
  ui.dialWind.textContent=n(c.wind_speed_10m)+" km/h "+compass(c.wind_direction_10m);
@@ -428,22 +431,22 @@ function renderConsensus(data){
  const precipAgreement=available.length?Math.max(rainShare,1-rainShare):0;
  const score=Math.round(100*(.20*availability+.45*thermal+.35*precipAgreement));
  const label=score>=80?"Confiance élevée":score>=60?"Confiance moyenne":"Confiance faible";
- ui.modelCount.textContent=`${available.length}/4 modèles disponibles`;
+ ui.modelCount.textContent=Tf("{0}/4 modèles disponibles",available.length);
  ui.confidenceScore.textContent=score+"%";
  ui.scoreRing.style.setProperty("--score",score+"%");
  ui.confidenceBar.style.width=score+"%";
- ui.confidenceLabel.textContent=label;
- ui.confidenceText.textContent=available.length<2?"Comparaison insuffisante : moins de deux modèles disponibles.":`Écart thermique ${n(spread,1)} °C ; ${Math.round(precipAgreement*100)} % d’accord sur la pluie.`;
+ ui.confidenceLabel.textContent=T(label);
+ ui.confidenceText.textContent=available.length<2?T("Comparaison insuffisante : moins de deux modèles disponibles."):Tf("Écart thermique {0} °C ; {1} % d’accord sur la pluie.",n(spread,1),Math.round(precipAgreement*100));
  ui.consensusTemp.textContent=temp==null?"—":n(temp,1)+" °C";
  ui.tempSpread.textContent=available.length<2?"—":"± "+n(spread,1)+" °C";
  ui.rainAgreement.textContent=available.length?Math.round(rainShare*100)+" %":"—";
- ui.consensusRain.textContent=available.length?(rainShare>=.5?"🌧️ Pluie majoritaire":"☂️ Pluie minoritaire"):"—";
+ ui.consensusRain.textContent=available.length?(rainShare>=.5?"🌧️ "+T("Pluie majoritaire"):"☂️ "+T("Pluie minoritaire")):"—";
  ui.modelRows.innerHTML="";
  (data._models||[]).forEach(model=>{
    const point=nearestModelPoint(model,target),tr=document.createElement("tr");
    tr.innerHTML=point
-    ? `<td><strong>${point.name}</strong></td><td>${n(point.temperature,1)} °C</td><td>${n(point.precipitation,1)} mm</td><td>${weatherInfo(point.weatherCode,1)[1]} Disponible</td>`
-    : `<td><strong>${model.name}</strong></td><td>—</td><td>—</td><td class="small">Indisponible</td>`;
+    ? `<td><strong>${point.name}</strong></td><td>${n(point.temperature,1)} °C</td><td>${n(point.precipitation,1)} mm</td><td>${weatherInfo(point.weatherCode,1)[1]} ${T("Disponible")}</td>`
+    : `<td><strong>${model.name}</strong></td><td>—</td><td>—</td><td class="small">${T("Indisponible")}</td>`;
    ui.modelRows.appendChild(tr);
  });
 }
@@ -454,10 +457,10 @@ function renderHourly(data){
  for(let i=start;i<Math.min(start+24,h.time.length);i++){
    const info=weatherInfo(h.weather_code[i],h.is_day?.[i]??1);
    const el=document.createElement("div"); el.className="hour";
-   el.innerHTML=`<strong>${i===start?"Maintenant":formatDate(h.time[i],{hour:"2-digit",minute:"2-digit"})}</strong>
+   el.innerHTML=`<strong>${i===start?T("Maintenant"):formatDate(h.time[i],{hour:"2-digit",minute:"2-digit"})}</strong>
    <div class="ico">${info[1]}</div><strong>${n(h.temperature_2m[i])}°</strong>
    <div class="rain">💧 ${n(h.precipitation_probability[i])}% · ${n(h.precipitation[i],1)} mm</div>
-   <div class="small">Vent ${n(h.wind_speed_10m[i])} km/h</div>`;
+   <div class="small">${T("Vent")} ${n(h.wind_speed_10m[i])} km/h</div>`;
    ui.hourly.appendChild(el);
  }
 }
@@ -467,7 +470,7 @@ function renderDaily(data){
  d.time.forEach((time,i)=>{
    if(d.temperature_2m_max[i]==null || d.temperature_2m_min[i]==null) return;
    const info=weatherInfo(d.weather_code[i],1), el=document.createElement("div"); el.className="day";
-   el.innerHTML=`<strong>${i===0?"Aujourd’hui":formatDate(time,{weekday:"long",day:"numeric",month:"short"})}</strong>
+   el.innerHTML=`<strong>${i===0?T("Aujourd’hui"):formatDate(time,{weekday:"long",day:"numeric",month:"short"})}</strong>
    <span class="ico">${info[1]}</span>
    <span><strong>${n(d.temperature_2m_max[i])}°</strong> / ${n(d.temperature_2m_min[i])}°</span>
    <span class="rain">💧 ${n(d.precipitation_probability_max[i])}% · ${n(d.precipitation_sum[i],1)} mm</span>`;
@@ -481,9 +484,9 @@ function renderNotice(data){
  const storm=indices.find(x=>[95,96,99].includes(h.weather_code[x.i]));
  const rain=indices.find(x=>(h.precipitation_probability[x.i]||0)>=70 && (h.precipitation[x.i]||0)>0.3);
  const gust=indices.find(x=>(h.wind_gusts_10m[x.i]||0)>=70);
- if(storm)alerts.push("Orage possible vers "+formatDate(h.time[storm.i],{hour:"2-digit",minute:"2-digit"}));
- if(rain)alerts.push("Pluie probable vers "+formatDate(h.time[rain.i],{hour:"2-digit",minute:"2-digit"}));
- if(gust)alerts.push("Rafales fortes possibles : "+n(h.wind_gusts_10m[gust.i])+" km/h");
+ if(storm)alerts.push(Tf("Orage possible vers {0}",formatDate(h.time[storm.i],{hour:"2-digit",minute:"2-digit"})));
+ if(rain)alerts.push(Tf("Pluie probable vers {0}",formatDate(h.time[rain.i],{hour:"2-digit",minute:"2-digit"})));
+ if(gust)alerts.push(Tf("Rafales fortes possibles : {0} km/h",n(h.wind_gusts_10m[gust.i])));
  if(alerts.length){ui.notice.textContent="⚠️ "+alerts.join(" · ");ui.notice.classList.remove("hidden")}
  else ui.notice.classList.add("hidden");
 }
@@ -497,7 +500,7 @@ async function loadLocation(location){
    localStorage.setItem("meteoLocation",JSON.stringify(location));
  }catch(e){
    console.error(e);
-   setStatus(e.name==="AbortError"?"La requête a expiré. Vérifie ta connexion.":"Impossible de charger la météo : "+e.message,true);
+   setStatus(e.name==="AbortError"?"La requête a expiré. Vérifiez votre connexion.":T("Impossible de charger la météo : ")+e.message,true);
  }finally{busy(false)}
 }
 
@@ -533,7 +536,7 @@ ui.gps.addEventListener("click",()=>{
       }catch{}
     }
     ui.query.value="Paris";
-    setStatus("Autorise la position GPS ou recherche une ville.");
+    setStatus("Autorisez la position GPS ou recherchez une ville.");
   }
 
   if(!("geolocation" in navigator)){
@@ -541,14 +544,14 @@ ui.gps.addEventListener("click",()=>{
     return;
   }
 
-  setStatus("Détection de ta position GPS…");
+  setStatus("Détection de votre position GPS…");
   busy(true);
 
   navigator.geolocation.getCurrentPosition(async position=>{
     const latitude=position.coords.latitude;
     const longitude=position.coords.longitude;
 
-    let label="Ma position";
+    let label=T("Ma position");
     try{
       label=await reverseLabel(latitude,longitude);
     }catch{}
@@ -557,9 +560,9 @@ ui.gps.addEventListener("click",()=>{
   },async error=>{
     busy(false);
     const messages={
-      1:"Position GPS refusée. Utilisation de la dernière ville enregistrée.",
-      2:"Position GPS indisponible. Utilisation de la dernière ville enregistrée.",
-      3:"La détection GPS a expiré. Utilisation de la dernière ville enregistrée."
+      1:"Position GPS refusée. La dernière ville enregistrée est utilisée.",
+      2:"Position GPS indisponible. La dernière ville enregistrée est utilisée.",
+      3:"La détection GPS a expiré. La dernière ville enregistrée est utilisée."
     };
     setStatus(messages[error.code]||"Impossible d’utiliser la position GPS.",true);
     await useSavedOrDefault();

@@ -1,7 +1,8 @@
-const CACHE_NAME = 'meteo-v1';
+const CACHE_NAME = 'meteo-v2';
 const CORE_ASSETS = [
   './',
   './index.html',
+  './i18n.js',
   './manifest.json'
 ];
 
