@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meteo-v2';
+const CACHE_NAME = 'meteo-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
